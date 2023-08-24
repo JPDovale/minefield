@@ -1,2 +1,3 @@
 # minefield
- Console minefield game
+
+Now using swing to make graphic interface 

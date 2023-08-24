@@ -3,8 +3,6 @@ package com.magiscrita.minefield.model;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.magiscrita.minefield.exception.ExplosionException;
-
 public class Field {
 	private final int X;
 	private final int Y;
@@ -14,11 +12,20 @@ public class Field {
 	private boolean isMarked = false;
 	
 	private List<Field> neighbors = new ArrayList<>();
+	private List<FieldObserver> observers = new ArrayList<>();
 	
 	Field(int X, int Y){
 		this.X = X;
 		this.Y = Y;
 	};
+	
+	public void registerObserver(FieldObserver observer) {
+		this.observers.add(observer);
+	}
+	
+	private void notifyObservers(FieldEvent event) {
+		this.observers.stream().forEach(observer -> observer.handleEvent(this, event));
+	}
 	
 	boolean addNeighbor(Field neighbor) {
 		boolean xIsDiff = this.X != neighbor.X;
@@ -40,9 +47,15 @@ public class Field {
 		return false;
 	}
 	
-	void changeMarking() {
+	public void changeMarking() {
 		if(!isOpen) {
 			this.isMarked = !this.isMarked;
+			
+			if(isMarked) {
+				notifyObservers(FieldEvent.MARK);
+			} else {
+				notifyObservers(FieldEvent.UNMARK);
+			}
 		}
 	}
 	
@@ -52,13 +65,14 @@ public class Field {
 		}
 	}
 	
-	boolean open() {
+	public boolean open() {
 		if(!isOpen && !isMarked) {
-			this.isOpen = true;
-			
 			if(this.isMined) {
-				throw new ExplosionException();
+				notifyObservers(FieldEvent.EXPLODE);
+				return true;
 			}
+			
+			setIsOpen(true);
 			
 			if(this.neighborsIsSafe()) {
 				neighbors.forEach(neighbor -> neighbor.open());
@@ -70,7 +84,7 @@ public class Field {
 		return false;
 	}
 	
-	boolean neighborsIsSafe() {
+	public boolean neighborsIsSafe() {
 		return neighbors.stream().noneMatch(neighbor -> neighbor.isMined);
 	}
 	
@@ -80,28 +94,15 @@ public class Field {
 		return isOpenSafe || isProtected;
 	}
 	
-	long minesOnNeighbor() {
-		return this.neighbors.stream().filter(neighbor -> neighbor.isMined).count();
+	public int minesOnNeighbor() {
+		return (int) this.neighbors.stream().filter(neighbor -> neighbor.isMined).count();
 	}
 	
 	void reset() {
 		this.isOpen = false;
 		this.isMarked = false;
 		this.isMined = false;
-	}
-	
-	public String toString() {
-		if(this.isMarked) {
-			return "X";
-		}else if(isOpen && isMined) {
-			return "*";
-		}else if(isOpen && minesOnNeighbor() > 0) {
-			return Long.toString(minesOnNeighbor());
-		}else if(isOpen) {
-			return " ";
-		}else {
-			return "?";
-		}
+		notifyObservers(FieldEvent.RESET);
 	}
 	
 	public boolean isMarked() {
@@ -110,6 +111,10 @@ public class Field {
 	
 	void setIsOpen(boolean isOpen) {
 		this.isOpen = isOpen;
+		
+		if(isOpen) {
+			notifyObservers(FieldEvent.OPEN);
+		}
 	}
 	
 	public boolean isOpen() {

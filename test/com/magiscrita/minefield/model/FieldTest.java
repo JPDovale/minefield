@@ -1,13 +1,10 @@
 package com.magiscrita.minefield.model;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import com.magiscrita.minefield.exception.ExplosionException;
 
 public class FieldTest {
 
@@ -123,16 +120,7 @@ public class FieldTest {
 		field.changeMarking();
 		assertFalse(field.open());
 	}
-	
-	@Test
-	void testOpenNotMarkedAndMined() {
-		field.mine();
-		
-		assertThrows(ExplosionException.class, () -> {
-			field.open();
-		});
-	}
-	
+
 	@Test
 	void testOpenWithNeighbors() {
 		Field field11 = new Field(1, 1);

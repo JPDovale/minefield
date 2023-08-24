@@ -1,20 +1,20 @@
 package com.magiscrita.minefield.model;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import com.magiscrita.minefield.exception.ExplosionException;
 
-public class Board {
+public class Board implements FieldObserver {
 	
-	private int lines;
-	private int columns;
-	private int mines;
+	private final int lines;
+	private final int columns;
+	private final int mines;
 	
 	private final List<Field> fields = new ArrayList<>();
-
+	private final List<Consumer<Boolean>>  observers = new ArrayList<>();
+	
 	public Board(int lines, int columns, int mines) {
 		this.lines = lines;
 		this.columns = columns;
@@ -24,18 +24,26 @@ public class Board {
 		mapNeighbors();
 		sortMines();
 	}
+	
+	public void fieldByField(Consumer<Field> function) {
+		fields.forEach(function);
+	}
+	
+	public void registerObserver(Consumer<Boolean> observer) {
+		this.observers.add(observer);
+	}
+	
+	public void notifyObservers(boolean result) {
+		observers.stream().forEach(observer -> observer.accept(result));
+	}
 
 	public void openField(int line, int column) {
-		try {
-			fields.parallelStream()
-			.filter(field -> field.getX() == line && field.getY() == column)
-			.findFirst()
-			.ifPresent(field -> field.open());
-		} catch (ExplosionException e) {
-			fields.forEach(field -> field.setIsOpen(true));
-			throw e;
-		}
+		fields.parallelStream()
+		.filter(field -> field.getX() == line && field.getY() == column)
+		.findFirst()
+		.ifPresent(field -> field.open());
 	}
+	
 	
 	public void changeMarkingField(int line, int column) {
 		fields.parallelStream()
@@ -47,7 +55,9 @@ public class Board {
 	private void generateFields() {
 		for (int line = 0; line < this.lines; line++) {
 			for (int column = 0; column < this.columns; column++) {
-				fields.add(new Field(line, column));
+				Field field = new Field(line, column);
+				field.registerObserver(this);
+				fields.add(field);
 			}
 		}
 	}
@@ -82,34 +92,35 @@ public class Board {
 		this.sortMines();
 	}
 	
-	public String toString() {
-		StringBuilder sb = new StringBuilder();
-		
-		sb.append("  ");
-		for (int column = 0; column < this.columns; column++) {
-			sb.append(" ");
-			sb.append(column);
-			sb.append(" ");
+	public void handleEvent(Field field, FieldEvent fieldEvent) {
+		if(fieldEvent == FieldEvent.EXPLODE) {
+			showMines();
+			notifyObservers(false);
+		}else if(goalCompleted()) {
+			System.out.println("Win!");
+			notifyObservers(true);
 		}
-		 
-		sb.append("\n");
 		
-		int i = 0;
-		for (int line = 0; line < this.lines; line++) {
-			sb.append(line);
-			sb.append(" ");
-			
-			for (int column = 0; column < this.columns; column++) {
-				sb.append(" ");
-				sb.append(fields.get(i));
-				sb.append(" ");
-				
-				i++;
-			}
-			sb.append("\n");
-		}
-
-		
-		return sb.toString();
 	}
+	
+	private void showMines() {
+		fields.stream()
+			.filter(field -> field.isMined() && !field.isMarked())
+			.forEach(field -> field.setIsOpen(true));
+	}
+
+	public int getLines() {
+		return lines;
+	}
+
+	public int getColumns() {
+		return columns;
+	}
+
+	public int getMines() {
+		return mines;
+	}
+	
+	
+	
 }
