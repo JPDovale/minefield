@@ -7,7 +7,7 @@ import com.magiscrita.minefield.model.Board;
 @SuppressWarnings("serial")
 public class MainWindow extends JFrame {
 	public MainWindow() {	
-		Board board = new Board(16, 30, 60);
+		Board board = new Board(32, 60, 120);
 		BoardView boardView = new BoardView(board);
 		
 		add(boardView);
